@@ -59,7 +59,7 @@ RUN pip install uwsgi
 RUN apt-get install -y python-pip libhdf5-openmpi-dev python-h5py
 RUN pip install cython
 RUN pip install nearpy bitarray redis
-RUN sudo pip install panns
+RUN pip install panns
 
 
 

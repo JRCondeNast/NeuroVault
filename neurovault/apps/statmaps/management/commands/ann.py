@@ -1,13 +1,10 @@
 from django.core.management.base import BaseCommand, CommandError
 from neurovault.apps.statmaps.tests.utils import clearDB
 from neurovault.apps.statmaps.models import Comparison, Similarity, User, Collection, Image
-from neurovault.apps.statmaps.utils import get_existing_comparisons
 from neurovault.apps.statmaps.tests.utils import save_statmap_form
 from neurovault.apps.statmaps.tasks import save_resampled_transformation_single
 
 import os
-import gc
-import timeit
 import numpy as np
 
 
@@ -32,7 +29,10 @@ class Command(BaseCommand):
 
         X[:, i] = np.load(image.reduced_representation.file)
         i = i + 1
-        if i == subjects: break
+        if i == subjects:
+            np.save(os.path.join(app_path, 'bench'), X)
+            break
+
 
     n_bits = 10
     hash_counts = 5
