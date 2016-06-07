@@ -60,6 +60,15 @@ RUN apt-get install -y python-pip libhdf5-openmpi-dev python-h5py
 RUN pip install cython
 RUN pip install nearpy bitarray redis
 RUN pip install panns
+RUN git clone https://github.com/mariusmuja/flann
+RUN apt-get install -y cmake
+RUN cd flann
+RUN mkdir build
+RUN cd build
+RUN cmake ..
+RUN make
+RUN make install
+RUN cd ../..
 
 
 
