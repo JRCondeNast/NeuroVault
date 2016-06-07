@@ -61,14 +61,15 @@ RUN pip install cython
 RUN pip install nearpy bitarray redis
 RUN pip install panns
 RUN git clone https://github.com/mariusmuja/flann
+RUN apt-get update
 RUN apt-get install -y cmake
-RUN cd flann
+WORKDIR /flann
 RUN mkdir build
-RUN cd build
+WORKDIR /flann/build
 RUN cmake ..
 RUN make
 RUN make install
-RUN cd ../..
+WORKDIR /
 
 
 
