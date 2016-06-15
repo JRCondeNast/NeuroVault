@@ -60,17 +60,7 @@ RUN pip install uwsgi
 RUN apt-get install -y python-pip libhdf5-openmpi-dev python-h5py
 RUN pip install cython
 RUN pip install nearpy bitarray redis
-RUN pip install panns
-RUN git clone https://github.com/mariusmuja/flann
-RUN apt-get update
-RUN apt-get install -y cmake
-WORKDIR /flann
-RUN mkdir build
-WORKDIR /flann/build
-RUN cmake ..
-RUN make
-RUN make install
-WORKDIR /
+
 RUN apt-get install -y python-dev python-setuptools
 RUN git clone https://github.com/lyst/rpforest
 WORKDIR /rpforest
@@ -97,9 +87,6 @@ RUN apt-get remove -y gfortran
 RUN apt-get autoremove -y
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-ADD scripts/preparing_AHBA_data.py /code/scripts/preparing_AHBA_data.py
-RUN python /code/scripts/preparing_AHBA_data.py
 
 RUN pip install statsmodels
 
