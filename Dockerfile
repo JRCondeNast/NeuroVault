@@ -61,11 +61,11 @@ RUN apt-get install -y python-pip libhdf5-openmpi-dev python-h5py
 RUN pip install cython
 RUN pip install nearpy bitarray redis
 
-RUN apt-get install -y python-dev python-setuptools
-RUN git clone https://github.com/lyst/rpforest
-WORKDIR /rpforest
-RUN python setup.py install
-WORKDIR /
+#RUN apt-get install -y python-dev python-setuptools
+#RUN git clone https://github.com/lyst/rpforest
+#WORKDIR /rpforest
+#RUN python setup.py install
+#WORKDIR /
 
 
 RUN pip install https://github.com/gallantlab/pycortex/archive/fe58400c8c3a3187d930b8a696cda8fec62c0f19.zip --egg
