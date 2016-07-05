@@ -38,7 +38,7 @@ def ManhattanDistance(x, y):
 
 def createFeatures(subjects=None, resample_dim=[4, 4, 4]):
     clearDB()
-    if os.path.isfile('/code/neurovault/apps/statmaps/tests/features'+str(subjects)+str(resample_dim)+'.npy') and subjects == None:
+    if os.path.isfile('/code/neurovault/apps/statmaps/tests/features'+str(subjects)+str(resample_dim)+'.npy'): #and subjects == None:
         return np.load('/code/neurovault/apps/statmaps/tests/features'+str(subjects)+str(resample_dim)+'.npy').T, \
                pickle.load(open('/code/neurovault/apps/statmaps/tests/dict_feat'+str(subjects)+str(resample_dim)+'.p',"rb" ))
     else:
@@ -88,9 +88,17 @@ class Command(BaseCommand):
         subjects = 940
         n_bits_pool = [2, 4, 6, 8, 10]
         hash_counts_pool = [2, 5, 10, 15, 20]
+        metric_pool = ["euclidean","cosine"]
+        z_score_pool = ["yes", "no"]
 
         for resample_dim in resample_dim_pool:
             features, dict_feat = createFeatures(subjects,resample_dim) #TODO: pass args to this function
+
+            for n_bits in n_bits_pool:
+                for hash_counts in hash_counts_pool:
+
+
+
 
         # TODO: build specific build, fit and query functions for each algo
         ## Nearpy
