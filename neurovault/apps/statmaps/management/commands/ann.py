@@ -92,7 +92,19 @@ def get_neurovault_scores(subjects, dict_feat):
             resp = requests.get(url=url)
             data = json.loads(resp.text)
             # create a dict of dicts
-            scores[value] = dict(zip([p[1] for p in data["data"]],[p[4] for p in data["data"]])) # id : corr value
+            image_ids = [p[1] for p in data["data"]]
+            corr_values = [p[4] for p in data["data"]]
+
+            # Take our dict_feat, check if it is in the list. If not, delete (we want to compare 1:1)
+            for id in image_ids:
+                try:
+                    idx = dict_feat.values().index(id)
+                except ValueError:
+                    idx2 = image_ids.index(id)
+                    image_ids.remove(id)
+                    corr_values.pop(idx2)
+
+            scores[value] = dict(zip(image_ids,corr_values)) # id : corr value
             # to sort:
             # sorted(dict1, key=dict1.get)
             # or
