@@ -78,6 +78,26 @@ def get_feature_dimension(resample_dim):
         break
     return dimension
 
+def get_neurovault_scores(subjects, dict_feat):
+    import json, requests
+    if os.path.isfile('/code/neurovault/apps/statmaps/tests/dict_scores' + str(subjects) +'.p'):  # and subjects == None:
+        return pickle.load(
+                   open('/code/neurovault/apps/statmaps/tests/dict_scores' + str(subjects) +'.p',"rb"))
+    else:
+        scores = {}
+        for value in dict_feat.itervalues():
+            #url = 'http://www.neurovault.com/images/'+ str(value) +'/find_similar/json'
+            url = 'http://127.0.0.1/images/3/find_similar/json'
+            resp = requests.get(url=url)
+            data = json.loads(resp.text)
+            # create a dict of dicts
+            scores[value] = dict(zip([p[1] for p in data["data"]],[p[4] for p in data["data"]])) # id : corr value
+
+        pickle.dump(scores, open(
+            '/code/neurovault/apps/statmaps/tests/dict_scores' + str(subjects) + '.p', "wb"))
+        return scores
+
+
 class Command(BaseCommand):
     args = '<times_to_run>'
     help = 'bench'
@@ -91,8 +111,11 @@ class Command(BaseCommand):
         metric_pool = ["euclidean","cosine"]
         z_score_pool = ["yes", "no"]
 
+
+
         for resample_dim in resample_dim_pool:
-            features, dict_feat = createFeatures(subjects,resample_dim) #TODO: pass args to this function
+            features, dict_feat = createFeatures(subjects, resample_dim)
+            scores = get_neurovault_scores(subjects, dict_feat)
 
             for n_bits in n_bits_pool:
                 for hash_counts in hash_counts_pool:
