@@ -78,6 +78,7 @@ def get_feature_dimension(resample_dim):
         break
     return dimension
 
+
 def get_neurovault_scores(subjects, dict_feat):
     import json, requests
     if os.path.isfile('/code/neurovault/apps/statmaps/tests/dict_scores' + str(subjects) +'.p'):  # and subjects == None:
@@ -92,10 +93,26 @@ def get_neurovault_scores(subjects, dict_feat):
             data = json.loads(resp.text)
             # create a dict of dicts
             scores[value] = dict(zip([p[1] for p in data["data"]],[p[4] for p in data["data"]])) # id : corr value
+            # to sort:
+            # sorted(dict1, key=dict1.get)
+            # or
+            # for w in sorted(d, key=d.get, reverse=True):
+            #       print w, d[w]
 
         pickle.dump(scores, open(
             '/code/neurovault/apps/statmaps/tests/dict_scores' + str(subjects) + '.p', "wb"))
         return scores
+
+
+#######
+# Accuracy metric #
+#######
+def dcg(r):
+    """Score is discounted cumulative gain (dcg)"""
+    r = np.asfarray(r)[:]
+    if r.size:
+        return r[0] + np.sum(r[1:] / np.log2(np.arange(2, r.size + 1)))
+    return 0.
 
 
 class Command(BaseCommand):
@@ -104,6 +121,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
+        import nearpy, nearpy.hashes, nearpy.distances
+
         resample_dim_pool = [[4,4,4],[6,6,6],[8,8,8],[10,10,10],[12,12,12],[14,14,14],[16,16,16]]
         subjects = 940
         n_bits_pool = [2, 4, 6, 8, 10]
@@ -111,50 +130,44 @@ class Command(BaseCommand):
         metric_pool = ["euclidean","cosine"]
         z_score_pool = ["yes", "no"]
 
-
-
         for resample_dim in resample_dim_pool:
             features, dict_feat = createFeatures(subjects, resample_dim)
             scores = get_neurovault_scores(subjects, dict_feat)
 
             for n_bits in n_bits_pool:
                 for hash_counts in hash_counts_pool:
+                    for metric in metric_pool:
+                        #for z_score in z_score_pool:
+
+                        if metric == "euclidean":
+                            distance = nearpy.distances.EuclideanDistance()
+                        else:
+                            distance = nearpy.distances.EuclideanDistance()
+
+                        # fit
+                        hashes = []
+                        for k in xrange(hash_counts):
+                            nearpy_rbp = nearpy.hashes.RandomBinaryProjections('rbp_%d' % k, n_bits)
+                            hashes.append(nearpy_rbp)
+                        nearpy_engine = nearpy.Engine(features.shape[1], lshashes=hashes, distance=distance)
+                        for i, x in enumerate(features):
+                            nearpy_engine.store_vector(x.tolist(), dict_feat[i])
+
+                        #query
+                        for i in range(features.shape[0]):
+                            results = nearpy_engine.neighbours(features[i])
+                            #print 'queried', dict_feat[i], 'results', zip(*results)[1]
+
+                        # comparison of results with scores!!
+                        # use of DCG()
 
 
 
 
-        # TODO: build specific build, fit and query functions for each algo
-        ## Nearpy
-        n_bits = 20
-        hash_counts = 10
-        metric = "euclidean"
-        name = 'NearPy(n_bits=%d, hash_counts=%d)' % (n_bits, hash_counts)
-        # fit
-        import nearpy, nearpy.hashes, nearpy.distances
-        hashes = []
-        # doesn't seem like the NearPy code is using the metric??
-        for k in xrange(hash_counts):
-            nearpy_rbp = nearpy.hashes.RandomBinaryProjections('rbp_%d' % k, n_bits)
-            hashes.append(nearpy_rbp)
 
-        nearpy_engine = nearpy.Engine(features.shape[1], lshashes=hashes)
-        for i, x in enumerate(features):
-            nearpy_engine.store_vector(x.tolist(), dict_feat[i])
-
-        #query
-        for i in range(features.shape[0]):
-            results = nearpy_engine.neighbours(features[i])
-            print 'queried', dict_feat[i], 'results', zip(*results)[1]
 
 
 #results are the N-nearest neighbours! [vector, data_idx, distance]. (for now, distance is NaN)
-
-
-
-
-
-
-
 
 
 from django.core.management.base import BaseCommand, CommandError
@@ -199,15 +212,7 @@ for i in range(features.shape[0]):
     print 'queried', dict_feat[i], 'results', zip(*results)[1]
 
 
-#######
-# Accuracy metric #
-#######
-def dcg(r):
-    """Score is discounted cumulative gain (dcg)"""
-    r = np.asfarray(r)[:]
-    if r.size:
-        return r[0] + np.sum(r[1:] / np.log2(np.arange(2, r.size + 1)))
-    return 0.
+
 
 
 
