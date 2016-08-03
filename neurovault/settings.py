@@ -348,12 +348,15 @@ os.environ["PATH"] += os.pathsep + '/path/to/lib/provToolbox/bin'
 # or manage periodic schedule in django admin
 #CELERYBEAT_SCHEDULER = 'djcelery.schedulers.DatabaseScheduler'
 
-if "test" in sys.argv or "benchmark" in sys.argv:
+if "test" in sys.argv:
     test_media_root = os.path.join(tempfile.mkdtemp(prefix="neurovault_test_"))
     PRIVATE_MEDIA_ROOT = test_media_root
     CELERY_ALWAYS_EAGER = True
     CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
 
+if "benchmark" in sys.argv:
+    CELERY_ALWAYS_EAGER = True
+    CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
 
 TAGGIT_CASE_INSENSITIVE=True
 
