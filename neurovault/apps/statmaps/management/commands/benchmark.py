@@ -37,6 +37,7 @@ def down_data():
         os.makedirs('/code/neurovault/apps/statmaps/tests/bench')
         os.makedirs('/code/neurovault/apps/statmaps/tests/bench/images')
     if len(os.listdir('/code/neurovault/apps/statmaps/tests/bench/images')) == 0:
+        print "Downloading"
         (path, _) = urllib.urlretrieve("https://ndownloader.figshare.com/files/5360999")
         archive = tarfile.open(path)
         archive.extractall('/code/neurovault/apps/statmaps/tests/bench')
@@ -57,7 +58,7 @@ class Command(BaseCommand):
         u1 = User.objects.create(username='neurovault3')
 
         from neurovault.apps.statmaps.utils import delete_vector
-        for i in range(30):
+        for i in range(19,20):
             delete_vector(i)
 
 
@@ -66,7 +67,7 @@ class Command(BaseCommand):
         query_table = np.zeros(num_files)
 
         for i, file in enumerate(os.listdir(os.path.join(app_path, 'images/'))):
-            #print 'Adding subject ' + file
+            print 'Adding subject %s' % i
             randomCollection = Collection(name='random' + file, owner=u1, DOI='10.3389/fninf.2015.00008' + str(i))
             randomCollection.save()
 

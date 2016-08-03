@@ -4,14 +4,19 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 from neurovault.apps.statmaps.tasks import save_resampled_transformation_single
 from neurovault.apps.statmaps.utils import is_search_compatible
+from pybraincompare.mr.transformation import make_resampled_transformation_vector
 import os
 import nearpy
 import numpy as np
 import pickle
+import nibabel as nib
 #import redis
 
+resample_dim = [4,4,4]
 
 def change_resample_dim(apps, schema_editor):
+    global resample_dim
+
     Image = apps.get_model("statmaps", "Image")
     count = Image.objects.count()
     for i, image in enumerate(Image.objects.all()):
@@ -19,18 +24,19 @@ def change_resample_dim(apps, schema_editor):
 
         try:
             os.path.exists(str(image.reduced_representation.file))
-            image.reduced_representation = save_resampled_transformation_single(image.pk,  resample_dim=[16, 16, 16])
+            image.reduced_representation = save_resampled_transformation_single(image.pk, resample_dim)
             #os.remove(str(image.reduced_representation.file)) # TODO: remove old reduced_representation files
         except ValueError:
             print "This image needs no resampling due to not previous resampled transformation"
 
 
-def build_nearpy(apps, schema_editor):
+def build_engine(apps, schema_editor):
     ### Build Engine
     ## Main parameters
     n_bits = 7
     hash_counts = 40
     distance = nearpy.distances.EuclideanDistance()
+    global resample_dim
 
     Image = apps.get_model("statmaps", "Image")
 
@@ -39,7 +45,10 @@ def build_nearpy(apps, schema_editor):
     for image in Image.objects.all():
         try: #TODO: Look carefully if the image has to go into the engine or not
             os.path.exists(str(image.reduced_representation.file))
-            feature = np.load(image.reduced_representation.file)
+
+            nii_obj = nib.load(image.file.path)  # standard_mask=True is default
+            feature = make_resampled_transformation_vector(nii_obj, resample_dim)
+
             if i == 0:
                 features = np.empty([99,feature.shape[0]])
                 features[i,:] = feature
@@ -121,8 +130,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+         migrations.RunPython(build_engine),
          migrations.RunPython(change_resample_dim),
-         migrations.RunPython(build_nearpy),
-         migrations.DeleteModel('Similarity'),
-         migrations.DeleteModel('Comparison')
+         # migrations.DeleteModel('Similarity'),
+         # migrations.DeleteModel('Comparison')
     ]

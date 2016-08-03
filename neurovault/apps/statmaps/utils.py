@@ -584,8 +584,8 @@ def get_similar_images(pk, max_results=100):
                                    'collection_name': []
                                    })
 
-    results = zip(*comparisons)[1][1:]
-    scores = zip(*comparisons)[2][1:]
+    results = zip(*comparisons)[1][1:][:max_results]
+    scores = zip(*comparisons)[2][1:][:max_results]
 
     print results
 
