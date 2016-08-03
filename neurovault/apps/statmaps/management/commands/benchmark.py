@@ -58,7 +58,7 @@ class Command(BaseCommand):
         u1 = User.objects.create(username='neurovault3')
 
         from neurovault.apps.statmaps.utils import delete_vector
-        for i in range(19,20):
+        for i in range(25):
             delete_vector(i)
 
 

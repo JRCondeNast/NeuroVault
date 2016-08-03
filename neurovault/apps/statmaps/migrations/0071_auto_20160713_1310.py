@@ -12,7 +12,7 @@ import pickle
 import nibabel as nib
 #import redis
 
-resample_dim = [4,4,4]
+resample_dim = [16,16,16]
 
 def change_resample_dim(apps, schema_editor):
     global resample_dim
@@ -43,7 +43,7 @@ def build_engine(apps, schema_editor):
     # Get 100 features, for dimension selection and in case PCA is selected
     i = 0
     for image in Image.objects.all():
-        try: #TODO: Look carefully if the image has to go into the engine or not
+        try:
             os.path.exists(str(image.reduced_representation.file))
 
             nii_obj = nib.load(image.file.path)  # standard_mask=True is default
@@ -107,7 +107,7 @@ def build_engine(apps, schema_editor):
 
     ## Fill the Engine
     for image in Image.objects.all():
-        try: #TODO: Look carefully if the image has to go into the engine or not
+        try:
             os.path.exists(str(image.reduced_representation.file))
             if is_search_compatible(image.pk):
                 feature = np.load(image.reduced_representation.file)
@@ -132,6 +132,6 @@ class Migration(migrations.Migration):
     operations = [
          migrations.RunPython(build_engine),
          migrations.RunPython(change_resample_dim),
-         # migrations.DeleteModel('Similarity'),
-         # migrations.DeleteModel('Comparison')
+         migrations.DeleteModel('Similarity'),
+         migrations.DeleteModel('Comparison')
     ]
