@@ -28,7 +28,7 @@
     								{ "orderable": false, "targets": 3 },
     								{ "targets": [ 1 ], "visible": false },
   									],
-        			"order": [[ 4, "desc" ]],
+        			"order": [[ 4, "asc" ]],
         			"ajax": "{% url 'find_similar_json' pk=image.pk %}",
 				});
        });
@@ -51,7 +51,7 @@
 					%th ID
 					%th Name
 					%th png
-					%th score
+					%th distance
 					%th tag
 
 .row

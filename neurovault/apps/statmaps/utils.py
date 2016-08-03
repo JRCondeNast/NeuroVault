@@ -26,8 +26,8 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from lxml import etree
 
-from neurovault.apps.statmaps.models import Collection, NIDMResults, StatisticMap, Comparison, NIDMResultStatisticMap, \
-    BaseStatisticMap
+from neurovault.apps.statmaps.models import Collection, NIDMResults, StatisticMap, NIDMResultStatisticMap, \
+    BaseStatisticMap, Image
 
 
 # see CollectionRedirectMiddleware
@@ -507,7 +507,8 @@ def is_search_compatible(pk):
     if img.polymorphic_ctype.model in ['image', 'atlas'] or \
        img.is_thresholded or \
        img.analysis_level == 'S' or \
-       img.map_type in ['R', 'Pa', 'A'] or img.collection.private:
+       img.map_type in ['R', 'Pa', 'A'] or img.collection.private \
+       or img.collection.DOI is None:
         return False
     else:
         return True
@@ -547,19 +548,33 @@ def count_processing_comparisons(pk1):
     return count_possible_comparisons(pk1) - count_existing_comparisons(pk1)
 
 
+# # Returns existing comparisons for specific pk, or entire database
+# def get_existing_comparisons(pk1):
+#     possible_images_to_compare_with_pks = get_images_to_compare_with(pk1) + [pk1]
+#     comparisons = Comparison.objects.filter(Q(image1__pk=pk1) | Q(image2__pk=pk1))
+#     comparisons = comparisons.filter(image1__id__in=possible_images_to_compare_with_pks,
+#                                      image2__id__in=possible_images_to_compare_with_pks)
+#     comparisons = comparisons.exclude(image1__pk=pk1, image2__pk=pk1)
+#     return comparisons
+
+
 # Returns existing comparisons for specific pk, or entire database
 def get_existing_comparisons(pk1):
-    possible_images_to_compare_with_pks = get_images_to_compare_with(pk1) + [pk1]
-    comparisons = Comparison.objects.filter(Q(image1__pk=pk1) | Q(image2__pk=pk1))
-    comparisons = comparisons.filter(image1__id__in=possible_images_to_compare_with_pks,
-                                     image2__id__in=possible_images_to_compare_with_pks)
-    comparisons = comparisons.exclude(image1__pk=pk1, image2__pk=pk1)
-    return comparisons
+    import pickle
+
+    nearpy_engine = pickle.load(open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "rb"))
+
+    image = Image.objects.get(pk=pk1)
+    feature = np.load(image.reduced_representation.file)
+    feature[np.isnan(feature)] = 0
+    results = nearpy_engine.neighbours(feature)
+    return results
 
 # Returns existing comparisons for specific pk in pd format for
 def get_similar_images(pk, max_results=100):
-    comparisons = get_existing_comparisons(pk).extra(select={"abs_score": "abs(similarity_score)"}).order_by(
-        "-abs_score")[0:max_results]  # "-" indicates descending
+    comparisons = get_existing_comparisons(pk)
+    # .extra(select={"abs_score": "abs(similarity_score)"}).order_by(
+    #     "-abs_score")[0:max_results]  # "-" indicates descending
 
     comparisons_pd = pd.DataFrame({'image_id': [],
                                    'score': [],
@@ -569,17 +584,68 @@ def get_similar_images(pk, max_results=100):
                                    'collection_name': []
                                    })
 
-    for comp in comparisons:
+    results = zip(*comparisons)[1][1:]
+    scores = zip(*comparisons)[2][1:]
+
+    print results
+
+    #TODO: get_images_to_compare_with and check with the ones retrieved
+
+
+    for i, id in enumerate(results):
+        image = Image.objects.get(pk=int(id))
         # pick the image we are comparing with
-        image = [image for image in [comp.image1, comp.image2] if image.id != pk][0]
-        if hasattr(image, "map_type") and image.thumbnail:
-            df = pd.DataFrame({'image_id': [image.pk],
-                               'score': [comp.similarity_score],
-                               'png_img_path': [image.get_thumbnail_url()],
-                               'tag': [[str(image.map_type)]],
-                               'name': [image.name],
-                               'collection_name': [image.collection.name]
-                               })
+        # image = [image for image in [comp.image1, comp.image2] if image.id != pk][0]
+        # if hasattr(image, "map_type") and image.thumbnail:
+        df = pd.DataFrame({'image_id': [id],
+                           'score': [scores[i]],
+                           'png_img_path': [image.get_thumbnail_url()],
+                           'tag': [[str(image.map_type)]],
+                           'name': [image.name],
+                           'collection_name': [image.collection.name]
+                           })
         comparisons_pd = comparisons_pd.append(df, ignore_index=True)
 
     return comparisons_pd
+
+
+#  OLD VERSION
+# Returns existing comparisons for specific pk in pd format for
+# def get_similar_images(pk, max_results=100):
+#     comparisons = get_existing_comparisons(pk).extra(select={"abs_score": "abs(similarity_score)"}).order_by(
+#          "-abs_score")[0:max_results]  # "-" indicates descending
+#
+#     comparisons_pd = pd.DataFrame({'image_id': [],
+#                                    'score': [],
+#                                    'png_img_path': [],
+#                                    'tag': [],
+#                                    'name': [],
+#                                    'collection_name': []
+#                                    })
+#
+#     for comp in comparisons:
+#         # pick the image we are comparing with
+#         image = [image for image in [comp.image1, comp.image2] if image.id != pk][0]
+#         if hasattr(image, "map_type") and image.thumbnail:
+#             df = pd.DataFrame({'image_id': [image.pk],
+#                                'score': [comp.similarity_score],
+#                                'png_img_path': [image.get_thumbnail_url()],
+#                                'tag': [[str(image.map_type)]],
+#                                'name': [image.name],
+#                                'collection_name': [image.collection.name]
+#                                })
+#         comparisons_pd = comparisons_pd.append(df, ignore_index=True)
+#
+#     return comparisons_pd
+
+
+# TODO: Remove this when NearPy upgrades
+def delete_vector(data):
+    nearpy_engine = pickle.load(open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "rb"))
+
+    for lshash in nearpy_engine.lshashes:
+        for bucket_key in nearpy_engine.storage.buckets[lshash.hash_name]:
+            nearpy_engine.storage.buckets[lshash.hash_name][bucket_key] = \
+                [(v, id) for v, id in nearpy_engine.storage.buckets[lshash.hash_name][bucket_key] if id != data]
+
+    pickle.dump(nearpy_engine, open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "wb"))

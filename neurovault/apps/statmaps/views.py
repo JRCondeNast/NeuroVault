@@ -309,6 +309,15 @@ def view_collection(request, cid):
 @login_required
 def delete_collection(request, cid):
     collection = get_collection(cid,request)
+
+    # TODO: Key has to be deleted also in the engine for every image in collection
+    from neurovault.apps.statmaps.utils import delete_vector
+    # nearpy_engine = pickle.load(open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "rb"))
+    for img in collection.basecollectionitem_set.all():
+          delete_vector(img.pk)
+    # pickle.dump(nearpy_engine,
+    #             open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "wb"))
+
     if not request.user.has_perm('statmaps.delete_collection', collection):
         return HttpResponseForbidden()
     collection.delete()
@@ -661,6 +670,16 @@ def upload_folder(request, collection_cid):
 @login_required
 def delete_image(request, pk):
     image = get_object_or_404(Image,pk=pk)
+
+    # TODO: Key has to be deleted also in the engine
+    # nearpy_engine = pickle.load(open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "rb"))
+    # nearpy_engine.delete_vector(image.pk)
+    # pickle.dump(nearpy_engine,
+    #             open('/code/neurovault/apps/statmaps/tests/nearpy_engine.p', "wb"))
+
+    from neurovault.apps.statmaps.utils import delete_vector
+    delete_vector(image.pk)
+
     cid = image.collection.pk
     if not request.user.has_perm("statmaps.delete_basecollectionitem", image):
         return HttpResponseForbidden()
@@ -873,6 +892,9 @@ def atlas_query_voxel(request):
 # Compare Two Images
 def compare_images(request,pk1,pk2):
     import numpy as np
+    from pybraincompare.mr.transformation import make_resampled_transformation_vector
+    resample_dim = [4, 4, 4]
+
     image1 = get_image(pk1,None,request)
     image2 = get_image(pk2,None,request)
     images = [image1,image2]
@@ -893,15 +915,19 @@ def compare_images(request,pk1,pk2):
             "IMAGE_2_LINK":"/images/%s" % (image2.pk)
     }
 
-    # create reduced representation in case it's not there
-    if not image1.reduced_representation or not os.path.exists(image1.reduced_representation.path):
-        image1 = save_resampled_transformation_single(image1.id) # cannot run this async
-    if not image2.reduced_representation or not os.path.exists(image2.reduced_representation.path):
-        image2 = save_resampled_transformation_single(image2.id) # cannot run this async
+    # # create reduced representation in case it's not there
+    # if not image1.reduced_representation or not os.path.exists(image1.reduced_representation.path):
+    #     image1 = save_resampled_transformation_single(image1.id) # cannot run this async
+    # if not image2.reduced_representation or not os.path.exists(image2.reduced_representation.path):
+    #     image2 = save_resampled_transformation_single(image2.id) # cannot run this async
 
-    # Load image vectors from npy files
-    image_vector1 = np.load(image1.reduced_representation.file)
-    image_vector2 = np.load(image2.reduced_representation.file)
+    # Generate image vectos from file
+    nii_obj = nib.load(image1.file.path)   # standard_mask=True is default
+    image_vector1 = make_resampled_transformation_vector(nii_obj,resample_dim)
+
+    nii_obj = nib.load(image2.file.path)   # standard_mask=True is default
+    image_vector2 = make_resampled_transformation_vector(nii_obj,resample_dim)
+
 
     # Load atlas pickle, containing vectors of atlas labels, colors, and values for same voxel dimension (4mm)
     this_path = os.path.abspath(os.path.dirname(__file__))
@@ -947,9 +973,9 @@ def find_similar(request, pk):
     pk = int(pk)
     max_results = 10
 
-    # Search only enabled if the image is not thresholded
-    if image1.is_thresholded:
-        error_message = "Image comparison is not enabled for thresholded images."
+    # Search only enabled if the image is not thresholded and some other constraints
+    if not is_search_compatible(image1.pk):
+        error_message = "Image comparison is not enabled for this image."
         context = {'error_message': error_message}
         return render(request, 'statmaps/error_message.html', context)
 
@@ -978,10 +1004,14 @@ def find_similar_json(request, pk, collection_cid=None):
     image1 = get_image(pk, None, request)
     pk = int(pk)
 
-    # Search only enabled if the image is not thresholded
-    if image1.is_thresholded:
-        return JSONResponse('error: Image comparison is not enabled for thresholded images.', status=400)
+    # Search only enabled if the image is not thresholded and some other constraints
+    if not is_search_compatible(image1.pk):
+        return JSONResponse('error: Image comparison is not enabled for this image.', status=400)
     else:
+        # Make sure we have a transforms for pks in question
+        if not image1.reduced_representation or not os.path.exists(image1.reduced_representation.path):
+            image1 = save_resampled_transformation_single(pk) # cannot run this async
+
         similar_images = get_similar_images(pk, max_results)
 
     dict = similar_images.to_dict("split")
@@ -1012,7 +1042,7 @@ def gene_expression_json(request, pk, collection_cid=None):
         raise Http404
 
     if not image.reduced_representation or not os.path.exists(image.reduced_representation.path):
-        image = save_resampled_transformation_single(image.id)
+        image = save_resampled_transformation_single.apply(image.id)
 
     map_data = np.load(image.reduced_representation.file)
     expression_results = calculate_gene_expression_similarity(map_data)
