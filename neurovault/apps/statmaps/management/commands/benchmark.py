@@ -7,6 +7,7 @@ import os
 import gc
 import timeit, datetime, tarfile
 import numpy as np
+import pickle
 
 class Timer:
     def __init__(self, timer=None, disable_gc=False, verbose=True):
@@ -54,6 +55,11 @@ class Command(BaseCommand):
         User.objects.all().delete()
         app_path = '/code/neurovault/apps/statmaps/tests/bench'
         u1 = User.objects.create(username='neurovault3')
+
+        from neurovault.apps.statmaps.utils import delete_vector
+        for i in range(30):
+            delete_vector(i)
+
 
         num_files = len(os.listdir(os.path.join(app_path, 'images/')))
         index_table = np.zeros(num_files)
