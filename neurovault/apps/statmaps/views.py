@@ -1223,8 +1223,13 @@ def download_collection(request, cid):
         # Add file, at correct path
         zf.write(fpath, zip_path)
 
+    with open(zip_filename, 'wb') as f:
+        for data in zf:
+            f.write(data)
+
     response = StreamingHttpResponse(zf, content_type='application/zip')
     response['Content-Disposition'] = 'attachment; filename=%s' % zip_filename
+    response['X-Accel-Redirect'] = "/zipdownloads/%s" % zip_filename
     return response
 
 def serve_surface_archive(request, pk, collection_cid=None):
