@@ -210,3 +210,39 @@ class ComparisonTestCase(TestCase):
         print "Success for this test means the pandas DataFrame shows the copy in first position with score of 1"
         self.assertEqual(similar_images['image_id'][0], int(image2.pk))
         self.assertEqual(similar_images['score'][0], 1)
+
+    def test_upload_same_name_file(self):
+        from django.core.files import File
+
+        collection1 = Collection(name='Collection1', owner=self.u1,
+                                 DOI='10.3389/fninf.2015.00099')
+
+        collection1.save()
+
+        app_path = os.path.abspath(os.path.dirname(__file__))
+        image1_path = os.path.join(app_path, 'test_data/statmaps/all.nii.gz')
+        image1 = save_statmap_form(image1_path,
+                                   collection=collection1,
+                                   image_name="image1")
+        filesize1 = image1.file.size
+        image1.delete()
+        
+        shutil.copyfile(image1_path, 
+                        os.path.join(app_path, 'test_data/statmaps/all_copy.nii.gz'))
+        shutil.copyfile(os.path.join(app_path, 'test_data/statmaps/beta_0001.nii.gz'), 
+                        image1_path)
+
+        image1 = save_statmap_form(image1_path,
+                                   collection=collection1,
+                                   image_name="image1")
+
+        filesize2 = image1.file.size
+        
+        shutil.copyfile(os.path.join(app_path, 'test_data/statmaps/all_copy.nii.gz'), 
+                        image1_path)
+        os.remove(os.path.join(app_path, 'test_data/statmaps/all_copy.nii.gz'))
+        
+        print "Success for this test means that file sizes changed"
+        print filesize1, filesize2
+        self.assertNotEqual(filesize1, filesize2)
+        
